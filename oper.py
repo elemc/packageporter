@@ -13,7 +13,7 @@ PASSWORD="3510"
 DBNAME="koji"
 
 import psycopg2
-from packageporter.packages.models import Packages
+from packageporter.packages.models import Packages, BuildedPackages
 from packageporter.owners.models import Owners
 from packageporter.repos.models import Repos
 
@@ -72,11 +72,11 @@ class UpdateFromKoji(object):
                     owner_id, tag_id = record_ctp
                     if tag_id > last_tag_id:
                         owner = owner_id
-                try:
-                    owner_obj = Owners.objects.get(pk=owner)
-                except:
-                    self.update_owners()
-                    owner_obj = Owners.objects.get(pk=owner)
+                owner_obj = self.get_owner(owner)
+                if owner_obj is None:
+                    ctp.close()
+                    c.close()
+                    return
                 
                 try:
                     null_repo = Repos.objects.get(pk=0)
@@ -90,6 +90,63 @@ class UpdateFromKoji(object):
                 new_pkg.save()
                 ctp.close()
         c.close()
+
+
+    def get_package(self, pkg_id):
+        try:
+            pkg = Packages.objects.get(pk=pkg_id)
+        except:
+            self.update_packages()
+            try:
+                pkg = Packages.objects.get(pk=pkg_id)
+            except:
+                return None
+        return pkg
+
+    def get_owner(self, owner_id):
+        try:
+            owner = Owners.objects.get(pk=owner_id)
+        except:
+            self.update_owners()
+            try:
+                owner = Owners.objects.get(pk=owner_id)
+            except:
+                return None
+        return owner
+
+    def update_builds(self):
+        if self.koji_conn is None:
+            return
+        c = self.koji_conn.cursor()
+        # state is
+        # 1 - done
+        # 2 - deleted
+        # 3 - failed
+        # 4 - cancelled
+        # select only success builds state=1
+        c.execute("select * from build where state='1'") 
+
+        for record in c:
+            _id, pkg_id, version, release, epoch, create_event, completion_time, state, task_id, owner_id = record
+            try:
+                bp = BuildedPackages.objects.get(pk=_id)
+            except:
+                package = self.get_package(pkg_id)
+                owner   = self.get_owner(owner_id)
+                if (package is not None) and (owner is not None):
+                    new_bp = BuildedPackages(build_id=_id, 
+                                             build_pkg=package, 
+                                             version=version,
+                                             release=release,
+                                             epoch=epoch,
+                                             completion_time=completion_time,
+                                             task_id=task_id,
+                                             owner=owner,
+                                             pushed=False)
+                    new_bp.save()
+        c.close()
+
+                                             
 
 if __name__ == '__main__':
     ufk = UpdateFromKoji()

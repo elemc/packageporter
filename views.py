@@ -7,4 +7,5 @@ def home(request):
     ufk.update_repos()
     ufk.update_owners()
     ufk.update_packages()
+    ufk.update_builds()
     return render_to_response('index.html')
