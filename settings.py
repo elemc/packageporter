@@ -123,6 +123,7 @@ INSTALLED_APPS = (
     'packages',
     'repos',
     'owners',
+    'logs',
 )
 
 # A sample logging configuration. The only tangible logging

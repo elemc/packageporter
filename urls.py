@@ -6,7 +6,8 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     # Examples:
-    url(r'^$', 'packageporter.views.home', name='home'),
+    #url(r'^$', 'packageporter.views.home', name='home'),
+    url(r'^$', 'packageporter.packages.views.index', name='index'),
     url(r'^packages/$', 'packageporter.packages.views.index', name='index'),
     url(r'^packages/builds/$', 'packageporter.packages.views.index', name='index'),
     url(r'^packages/builds/all/$', 'packageporter.packages.views.allbuilds', name='allbuilds'),

@@ -11,7 +11,8 @@ from django.views.decorators.csrf import csrf_protect
 
 from django.forms.formsets import formset_factory
 
-from packageporter.oper import PushPackagesToRepo
+from packageporter.oper import PushPackagesToRepo, UpdateFromKoji
+
 
 def get_packages():
     try:
@@ -96,6 +97,8 @@ def index(request):
             #formset = SelectPackagesToPush(initial = initial_data())
             return HttpResponseRedirect('/packages/builds/')
     else:
+        ufk = UpdateFromKoji(request.user.username)
+        ufk.update_builds()
         formset = SelectPackagesFormSet(initial = initial_data())
 
     c = {'formset': formset} 

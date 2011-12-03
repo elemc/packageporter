@@ -15,17 +15,25 @@ DBNAME="koji"
 import psycopg2
 from packageporter.packages.models import Packages, BuildedPackages
 from packageporter.owners.models import Owners
-from packageporter.repos.models import Repos
+from packageporter.repos.models import Repos, RepoTypes
+from packageporter.logs.models import UpdateLog
 import datetime
 
 class UpdateFromKoji(object):
-    def __init__(self):
+    def __init__(self, user = ''):
         conn_str = "host=%s port=%i dbname=%s user=%s password=%s" % (
             HOST, PORT, DBNAME, USER, PASSWORD)
         try:
             self.koji_conn = psycopg2.connect(conn_str)
         except:
             self.koji_conn = None
+
+        self.user = user
+
+        if self.koji_conn is not None:
+            self.update_repos()
+            self.update_rt()
+            self.update_owners()
 
     def __del__(self):
         if self.koji_conn is not None:
@@ -38,6 +46,21 @@ class UpdateFromKoji(object):
             new_sys_repo = Repos(repo_id=0,
                                  repo_name = "Unknown")
             new_sys_repo.save()
+
+    def update_rt(self):
+        # Testing
+        try:
+            rt = RepoTypes.objects.get(pk=1)
+        except:
+            new_rt = RepoTypes(rt_id=1, rt_name="Testing")
+            new_rt.save()
+            
+        # Updates
+        try:
+            rt = RepoTypes.objects.get(pk=2)
+        except:
+            new_rt = RepoTypes(rt_id=1, rt_name="Updates")
+            new_rt.save()
 
     def update_owners(self):
         if self.koji_conn is None:
@@ -53,12 +76,8 @@ class UpdateFromKoji(object):
                 new_owner = Owners(owner_id=_id, owner_name=name)
                 new_owner.save()
         c.close()
-            
-    def update_packages(self):
-        if self.koji_conn is None:
-            return
-        c = self.koji_conn.cursor()
-        c.execute("select * from package")
+
+    def __system_update_packages_from_cursor(self, c):
         for record in c:
             _id, name = record
             
@@ -90,14 +109,30 @@ class UpdateFromKoji(object):
                                    pkg_repo = null_repo)
                 new_pkg.save()
                 ctp.close()
+            
+    def update_packages(self):
+        if self.koji_conn is None:
+            return
+        c = self.koji_conn.cursor()
+        c.execute("select * from package")
+        self.__system_update_packages_from_cursor(c)
         c.close()
 
-
+    def update_package(self, pkg_id):
+        if self.koji_conn is None:
+            return
+        c = self.koji_conn.cursor()
+        c.execute("select * from package where id='%s'" % pkg_id)
+        if c.rowcount == 0:
+            return
+        self.__system_update_packages_from_cursor(c)
+        c.close()
+        
     def get_package(self, pkg_id):
         try:
             pkg = Packages.objects.get(pk=pkg_id)
         except:
-            self.update_packages()
+            self.update_package(pkg_id)
             try:
                 pkg = Packages.objects.get(pk=pkg_id)
             except:
@@ -125,7 +160,17 @@ class UpdateFromKoji(object):
         # 3 - failed
         # 4 - cancelled
         # select only success builds state=1
-        c.execute("select * from build where state='1'") 
+
+        ul = UpdateLog.objects.all().filter(is_last=True)
+        if len(ul) == 0:
+            c.execute("select * from build where state='1'")
+        else:
+            c.execute("select * from build where state='1' and id>'%s'" % ul[0].last_build_id)
+            for one_ul in ul:
+                one_ul.is_last = False
+                one_ul.save()
+
+        last_build_id = 0
 
         for record in c:
             _id, pkg_id, version, release, epoch, create_event, completion_time, state, task_id, owner_id = record
@@ -145,8 +190,15 @@ class UpdateFromKoji(object):
                                              owner=owner,
                                              pushed=False)
                     new_bp.save()
+                    new_bp.oper_build()
+                    if last_build_id < _id:
+                        last_build_id = _id
         c.close()
-
+        new_ul = UpdateLog(is_last=True, 
+                           update_timestamp = datetime.datetime.now(),
+                           last_build_id = last_build_id,
+                           user = self.user)
+        new_ul.save()
 
 class PushPackagesToRepo(object):
     def __init__(self, build_list = []):
