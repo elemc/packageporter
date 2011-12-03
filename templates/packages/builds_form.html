@@ -4,14 +4,18 @@
     <div id="content">
         {% block content %}
 		<div class="module">
+		  <p>
+		  <a href="/packages/builds/all/">All builds</a>
+		  </p>
 		  <form action="/packages/builds/" method="post">{% csrf_token %}
 			{{ formset.management_form }}
 			<table>
 			  <caption>Builded packages</caption>
 			  <tr>
+				<td></td>
 				<td>Package</td>
 				<td>Builded completion time</td>
-				<td>Owner</td>
+				<td>Push to repo type</td>
 				<td>Additional</td>
 			  </tr>
 
@@ -21,10 +25,19 @@
 				{% if field.is_hidden %}
 				  {% if field.label == "Package name" %}
 				    <!-- TODO: this is my test anchor -->
-				    <td><a href="/">{{ field.value }}</a></td>
-				  {% else %}
 				    <td>{{ field.value }}</td>
+				  {% else %}
+					  {% if field.label == "Pkg id" %}
+					    <td><a href="http://koji.russianfedora.ru/koji/packageinfo?packageID={{ field.value }}" target="_blank">Package info</a><br>
+					  {% else %}
+						{% if field.label == "Build id" %}
+						  <a href="http://koji.russianfedora.ru/koji/buildinfo?buildID={{ field.value }}" target="_blank">Build info</a></td>
+						{% else %}
+				          <td>{{ field.value }}</td>
+						{% endif %}
+					  {% endif %}
 				  {% endif %}
+					{{ field }}
 				{% else %}
 				<td>{{ field }}</td>
 				{% endif %}
@@ -32,8 +45,10 @@
 			  </tr>
 			  {% endfor %}
 			</table>
+			<input type="submit" value="Push" name="push_packages"/>
+			<input type="submit" value="Cancel" name="cancel_packages"/>
 		  </form>
-		  <input type="submit" value="Push" />
+		  
 
 		</div>
 		{% endblock %}

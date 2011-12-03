@@ -9,6 +9,7 @@ urlpatterns = patterns('',
     url(r'^$', 'packageporter.views.home', name='home'),
     url(r'^packages/$', 'packageporter.packages.views.index', name='index'),
     url(r'^packages/builds/$', 'packageporter.packages.views.index', name='index'),
+    url(r'^packages/builds/all/$', 'packageporter.packages.views.allbuilds', name='allbuilds'),
     # url(r'^packageporter/', include('packageporter.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:

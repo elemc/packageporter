@@ -2,7 +2,7 @@ from django.template import Context, loader
 from django.shortcuts import render_to_response
 from packageporter.packages.models import BuildedPackages
 from packageporter.repos.models import RepoTypes
-from django.http import Http404
+from django.http import Http404, HttpResponseRedirect
 
 from django import forms
 
@@ -11,19 +11,8 @@ from django.views.decorators.csrf import csrf_protect
 
 from django.forms.formsets import formset_factory
 
-def choice_packages():
-    res = []
-    for bpkg in get_packages():
-        bpkg_list = { "pkg_name": bpkg.full_build_package_name(), 
-                      "build_id": bpkg.build_id, 
-                      "time": bpkg.completion_time, 
-                      "owner": bpkg.owner,
-                    }
-        bpkg_list = "<td>%s</td>" % bpkg.full_build_package_name()
-        res.append( (bpkg.build_id, bpkg_list) )
-    #print(res)
-    return res
-  
+from packageporter.oper import PushPackagesToRepo
+
 def get_packages():
     try:
         bpkg_list = BuildedPackages.objects.filter(pushed=False).order_by('completion_time')
@@ -45,38 +34,75 @@ def get_all_repo_types():
 
 
 class SelectPackagesToPush(forms.Form):
-    #selected_packages = forms.MultipleChoiceField(choices=choice_packages(), widget=forms.CheckboxSelectMultiple())
-    selected_package    = forms.BooleanField()
+    selected_package    = forms.BooleanField(required=False)
     package_name        = forms.CharField(widget=forms.HiddenInput)
     completion_time     = forms.DateTimeField(widget=forms.HiddenInput)
     repo_type           = forms.ChoiceField(choices=get_all_repo_types())
-SelectPackagesFormSet = formset_factory(SelectPackagesToPush)
+    pkg_id              = forms.IntegerField(widget=forms.HiddenInput)
+    build_id            = forms.IntegerField(widget=forms.HiddenInput)
+SelectPackagesFormSet = formset_factory(SelectPackagesToPush, extra=0)
+
+def initial_data():
+    bpkg_list = get_packages()
+    result = []
+    for bpkg in bpkg_list:
+        record = {"selected_package": False,
+                  "package_name": bpkg.full_build_package_name(),
+                  "completion_time": bpkg.completion_time.strftime('%Y-%m-%d %H:%M:%S'),           
+                  "pkg_id": bpkg.build_pkg.pkg_id,
+                  "build_id": bpkg.build_id,
+                  }
+
+        result.append(record)
+    return result 
+    
 
 @csrf_protect
 def index(request):
-    #try:
-    #    bpkg_list = BuildedPackages.objects.filter(pushed=False).order_by('completion_time')
-    #except:
-    #    raise Http404
-
     if request.method == 'POST':
-        form = SelectPackagesFormSet(request.POST) #SelectPackagesToPush(request.POST)
-        if form.is_valid():
-            #print(form.cleaned_data['selected_packages'])
-            pass
+        formset = SelectPackagesFormSet(request.POST)# , initial=initial_data())
+        if formset.is_valid():
+            action_type = ""
+            if "push_packages" in request.POST:
+                action_type = "push"
+            elif "cancel_packages" in request.POST:
+                action_type = "cancel"
+
+            request_list = []
+            for form in formset:
+                checked         = form.cleaned_data['selected_package']
+                if not checked:
+                    continue
+
+                # make a list of build_id, build_repo, user
+                build_id        = form.cleaned_data['build_id']
+                repo_type_id    = form.cleaned_data['repo_type']
+
+                # get build_repo name
+                try:
+                    build_repo = RepoTypes.objects.get(pk=repo_type_id)
+                except:
+                    build_repo = None
+                
+                # get a user
+                user = request.user.username
+                print("user: %s\treal name: %s" % (request.user, request.user.username))
+                request_list.append( (build_id, build_repo, user) )
+            push = PushPackagesToRepo(request_list)
+            if action_type == 'push':
+                push.push_to_repo()
+            elif action_type == 'cancel':
+                push.cancel_packages()
+            #formset = SelectPackagesToPush(initial = initial_data())
+            return HttpResponseRedirect('/packages/builds/')
     else:
-        bpkg_list = get_packages()
-        initial_data = []
-        for bpkg in bpkg_list:
-            record = {"selected_package": False,
-                      "package_name": bpkg.full_build_package_name(),
-                      "completion_time": bpkg.completion_time,
-                      }
+        formset = SelectPackagesFormSet(initial = initial_data())
 
-            initial_data.append(record)
-        form = SelectPackagesFormSet(initial=initial_data)
-
-    c = {'formset': form} 
+    c = {'formset': formset} 
     c.update(csrf(request))
 
     return render_to_response('packages/builds_form.html', c)
+
+def allbuilds(request):
+    c = ""
+    return render_to_response('packages/builds.html', c)

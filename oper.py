@@ -16,6 +16,7 @@ import psycopg2
 from packageporter.packages.models import Packages, BuildedPackages
 from packageporter.owners.models import Owners
 from packageporter.repos.models import Repos
+import datetime
 
 class UpdateFromKoji(object):
     def __init__(self):
@@ -146,7 +147,46 @@ class UpdateFromKoji(object):
                     new_bp.save()
         c.close()
 
-                                             
+
+class PushPackagesToRepo(object):
+    def __init__(self, build_list = []):
+        self.build_list = build_list
+
+    def cancel_package(self, build_id, user):
+        try:
+            bpkg = BuildedPackages.objects.get(pk=build_id)
+        except:
+            print("Warning! Build ID %s not found!" % build_id)
+            return
+        bpkg.pushed = True
+        bpkg.push_user = user
+        bpkg.save()
+
+    def cancel_packages(self):
+        if len(self.build_list) == 0:
+            return;
+        for build_id, build_repo, user in self.build_list:
+            self.cancel_package(build_id, user)
+
+    def push_to_repo(self):
+        if len(self.build_list) == 0:
+            return;
+        for build_id, build_repo, user in self.build_list:
+            if build_repo is None:
+                print("Warning! Repo is not defined. Skip this build (%s).", build_id)
+                continue
+            # TODO: make a push process
+            print("Push build id=%s to repo %s" % (build_id, build_repo))
+            try:
+                bpkg = BuildedPackages.objects.get(pk=build_id)
+            except:
+                print("Warning! Build ID %s not found!" % build_id)
+                continue
+            bpkg.pushed         = True
+            bpkg.push_user      = user
+            bpkg.push_time      = datetime.datetime.now()
+            bpkg.push_repo_type = build_repo
+            bpkg.save()
 
 if __name__ == '__main__':
     ufk = UpdateFromKoji()
