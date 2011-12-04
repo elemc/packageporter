@@ -3,39 +3,24 @@
 
     <div id="content">
         {% block content %}
-
+		<p><h4>Last 30 operations</h4></p>
 		<div class="module">
-		  <table summary="Packages models">
-			<caption><a href="/packages/" class="section">Packages and builds</a></caption>
+		  <table width="100%">
+			<caption>Operations</caption>
 			<tr>
-			  <th scope="row"><a href="/packages/pkglist/">Packages</a></th>
+			  <th>Build</td>
+			  <th>User</td>
+              <th>Operation time</td>
+			  <th>Type</td>
+			  <th>Description</td>
 			</tr>
+			{% for row in operations %}
 			<tr>
-			  <th scope="row"><a href="/packages/builds/">Builds</a><th>
+			  {% for field in row %}
+			  <td>{{ field }}</td>
+			  {% endfor %}
 			</tr>
-		  </table>
-		</div>
-		<div class="module">
-		  <table summary="Repos models">
-			<caption><a href="/repos/" class="section">Repositories</a></caption>
-			<tr>
-			  <th scope="row"><a href="/repos/repos/">Repositories</a></th>
-			  <!-- <td><a href="/repos/repos/add/" class="addlink">Add</a></td> 
-			  <td><a href="/repos/repos/" class="changelink">Edit</a></td> -->
-			</tr>
-			<tr>
-			  <th scope="row"><a href="/repos/repotypes/">Repo types</a><th>
-			  <!-- <td><a href="/repos/repotypes/add/" class="addlink">Add</a></td>
-			  <td><a href="/repos/repotypes/" class="changelink">Edit</a></td> -->
-			</tr>
-		  </table>
-		</div>
-		<div class="module">
-		  <table summary="Owner models">
-			<caption><a href="/owners/" class="section">Owners</a></caption>
-			<tr>
-			  <th scope="row"><a href="/owners/">Owners</a></th>
-			</tr>
+			{% endfor %}
 		  </table>
 		</div>
 

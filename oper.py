@@ -50,17 +50,17 @@ class UpdateFromKoji(object):
     def update_rt(self):
         # Testing
         try:
-            rt = RepoTypes.objects.get(pk=1)
+            rt_t = RepoTypes.objects.get(pk=1)
         except:
-            new_rt = RepoTypes(rt_id=1, rt_name="Testing")
-            new_rt.save()
+            new_rt_t = RepoTypes(rt_id=1, rt_name="Testing")
+            new_rt_t.save()
             
         # Updates
         try:
-            rt = RepoTypes.objects.get(pk=2)
+            rt_u = RepoTypes.objects.get(pk=2)
         except:
-            new_rt = RepoTypes(rt_id=1, rt_name="Updates")
-            new_rt.save()
+            new_rt_u = RepoTypes(rt_id=2, rt_name="Updates")
+            new_rt_u.save()
 
     def update_owners(self):
         if self.koji_conn is None:
@@ -165,10 +165,7 @@ class UpdateFromKoji(object):
         if len(ul) == 0:
             c.execute("select * from build where state='1'")
         else:
-            c.execute("select * from build where state='1' and id>'%s'" % ul[0].last_build_id)
-            for one_ul in ul:
-                one_ul.is_last = False
-                one_ul.save()
+            c.execute("select * from build where (state='1' and id>'%s')" % ul[0].last_build_id)
 
         last_build_id = 0
 
@@ -194,17 +191,21 @@ class UpdateFromKoji(object):
                     if last_build_id < _id:
                         last_build_id = _id
         c.close()
-        new_ul = UpdateLog(is_last=True, 
-                           update_timestamp = datetime.datetime.now(),
-                           last_build_id = last_build_id,
-                           user = self.user)
-        new_ul.save()
+        if last_build_id != 0:
+            for one_ul in ul:
+                one_ul.is_last = False
+                one_ul.save()
+            new_ul = UpdateLog(is_last=True, 
+                               update_timestamp = datetime.datetime.now(),
+                               last_build_id = last_build_id,
+                               user = self.user)
+            new_ul.save()
 
 class PushPackagesToRepo(object):
     def __init__(self, build_list = []):
         self.build_list = build_list
 
-    def cancel_package(self, build_id, user):
+    def cancel_package(self, build_id, user, reason):
         try:
             bpkg = BuildedPackages.objects.get(pk=build_id)
         except:
@@ -213,17 +214,18 @@ class PushPackagesToRepo(object):
         bpkg.pushed = True
         bpkg.push_user = user
         bpkg.save()
+        bpkg.oper_block(user, reason)
 
     def cancel_packages(self):
         if len(self.build_list) == 0:
             return;
-        for build_id, build_repo, user in self.build_list:
-            self.cancel_package(build_id, user)
+        for build_id, build_repo, user, reason in self.build_list:
+            self.cancel_package(build_id, user, reason)
 
     def push_to_repo(self):
         if len(self.build_list) == 0:
             return;
-        for build_id, build_repo, user in self.build_list:
+        for build_id, build_repo, user,reason in self.build_list:
             if build_repo is None:
                 print("Warning! Repo is not defined. Skip this build (%s).", build_id)
                 continue
@@ -234,11 +236,11 @@ class PushPackagesToRepo(object):
             except:
                 print("Warning! Build ID %s not found!" % build_id)
                 continue
-            bpkg.pushed         = True
-            bpkg.push_user      = user
-            bpkg.push_time      = datetime.datetime.now()
-            bpkg.push_repo_type = build_repo
-            bpkg.save()
+
+            if build_repo.rt_id == 1:
+                bpkg.oper_pre_push(user, build_repo)
+            else:
+                bpkg.oper_push(user, build_repo)
 
 if __name__ == '__main__':
     ufk = UpdateFromKoji()

@@ -25,6 +25,7 @@ def get_all_repo_types():
     try:
         r = RepoTypes.objects.all()
     except:
+        print("DEBUG: Error in select repo types")
         return []
     
     res = []
@@ -41,6 +42,7 @@ class SelectPackagesToPush(forms.Form):
     repo_type           = forms.ChoiceField(choices=get_all_repo_types())
     pkg_id              = forms.IntegerField(widget=forms.HiddenInput)
     build_id            = forms.IntegerField(widget=forms.HiddenInput)
+    cancel_reason       = forms.CharField(required=False)
 SelectPackagesFormSet = formset_factory(SelectPackagesToPush, extra=0)
 
 def initial_data():
@@ -56,12 +58,11 @@ def initial_data():
 
         result.append(record)
     return result 
-    
 
 @csrf_protect
 def index(request):
     if request.method == 'POST':
-        formset = SelectPackagesFormSet(request.POST)# , initial=initial_data())
+        formset = SelectPackagesFormSet(request.POST)
         if formset.is_valid():
             action_type = ""
             if "push_packages" in request.POST:
@@ -78,6 +79,7 @@ def index(request):
                 # make a list of build_id, build_repo, user
                 build_id        = form.cleaned_data['build_id']
                 repo_type_id    = form.cleaned_data['repo_type']
+                reason          = form.cleaned_data['cancel_reason']
 
                 # get build_repo name
                 try:
@@ -87,21 +89,20 @@ def index(request):
                 
                 # get a user
                 user = request.user.username
-                print("user: %s\treal name: %s" % (request.user, request.user.username))
-                request_list.append( (build_id, build_repo, user) )
+                request_list.append( (build_id, build_repo, user, reason) )
             push = PushPackagesToRepo(request_list)
             if action_type == 'push':
                 push.push_to_repo()
             elif action_type == 'cancel':
                 push.cancel_packages()
-            #formset = SelectPackagesToPush(initial = initial_data())
             return HttpResponseRedirect('/packages/builds/')
     else:
         ufk = UpdateFromKoji(request.user.username)
         ufk.update_builds()
         formset = SelectPackagesFormSet(initial = initial_data())
 
-    c = {'formset': formset} 
+    c = {'formset': formset,
+         'user': request.user} 
     c.update(csrf(request))
 
     return render_to_response('packages/builds_form.html', c)
@@ -109,3 +110,9 @@ def index(request):
 def allbuilds(request):
     c = ""
     return render_to_response('packages/builds.html', c)
+
+@csrf_protect
+def packages(request):
+    toform = {'user': request.user}
+    toform.update(csrf(request))
+    return render_to_response('packages/packages.html', toform)

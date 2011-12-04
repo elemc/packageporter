@@ -87,6 +87,18 @@ class BuildedPackages(models.Model):
 class BuildOperations(models.Model):
     build                       = models.ForeignKey(BuildedPackages)
     operation_time              = models.DateTimeField()
-    operation_user              = models.CharFiels(max_length=50)
+    operation_user              = models.CharField(max_length=50)
     operation_type              = models.IntegerField() # as example: 0 - builded, 1 - pre-push , 2 - push, 3 - block...
     operation_description       = models.TextField() # this field is "to <repo>" for push and pre-push, "<reason>" for block
+
+    def print_type(self):
+        if self.operation_type == 0:
+            return "Build"
+        elif self.operation_type == 1:
+            return "Pre-push"
+        elif self.operation_type == 2:
+            return "Push"
+        elif self.operation_type == 3:
+            return "Block"
+
+        return "Unknown"

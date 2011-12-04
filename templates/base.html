@@ -23,8 +23,18 @@
         <div id="branding">
         {% block branding %}{% endblock %}
         </div>
+        {% block nav-global %}
+		<table width="100%">
+		  <tr>
+			<th width="8%"><a href="/">Home</a></th>
+			<th width="8%"><a href="/packages/builds/">Builds</a></th>
+			<th width="8%"><a href="/packages/">Packages</a></th>
+			<th width="8%"><a href="/repos/">Repositories</a></th>
+			<th width="8%"><a href="/owners/">Owners</a></th>
+			<th width="8%"><a href="/admin/">Administration</a></th>
+			<td width="52%" align="right">
         {% if user.is_active and user.is_staff %}
-        <div id="user-tools">
+        <!-- <div id="user-tools"> -->
             {% trans 'Welcome,' %}
             <strong>{% filter force_escape %}{% firstof user.first_name user.username %}{% endfilter %}</strong>.
             {% block userlinks %}
@@ -47,15 +57,9 @@
                 {% endif %}
                 {% trans 'Log out' %}</a>
             {% endblock %}
-        </div>
+        <!-- </div> -->
         {% endif %}
-        {% block nav-global %}
-		<table width="100%">
-		  <tr>
-			<th width="5%"><a href="/packages/">Packages</a></th>
-			<th width="5%"><a href="/repos/">Repositories</a></th>
-			<th width="5%"><a href="/owners/">Owners</a></th>
-			<td width="85%" align="right"><a href="/">Logout</a></td>
+		  </td>
 		  </tr>
 		</table>
 
