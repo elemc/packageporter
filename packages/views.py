@@ -1,7 +1,7 @@
 from django.template import Context, loader
 from django.shortcuts import render_to_response
 from packageporter.packages.models import BuildedPackages, Packages
-from packageporter.repos.models import Repos
+from packageporter.repos.models import Repos, RepoTypes
 
 from django.http import Http404, HttpResponseRedirect
 
@@ -17,38 +17,40 @@ def index(request):
     if request.method == 'POST':
         formset = SelectPackagesFormSet(request.POST)
         if formset.is_valid():
-			action_type = ""
-			if "push_packages" in request.POST:
-				action_type = "push"
-			elif "cancel_packages" in request.POST:
-				action_type = "cancel"
+            action_type = ""
+            if "push_packages" in request.POST:
+                action_type = "push"
+            elif "cancel_packages" in request.POST:
+                action_type = "cancel"
 
-			request_list = []
-			for form in formset:
-				checked         = form.cleaned_data['selected_package']
-				if not checked:
-					continue
+            request_list = []
+            for form in formset:
+                checked         = form.cleaned_data['selected_package']
+                if not checked:
+                    continue
 
                 # make a list of build_id, build_repo, user
-				build_id        = form.cleaned_data['build_id']
-				repo_type_id    = form.cleaned_data['repo_type']
-				reason          = form.cleaned_data['cancel_reason']
+                build_id        = form.cleaned_data['build_id']
+                repo_type_id    = form.cleaned_data['repo_type']
+                reason          = form.cleaned_data['cancel_reason']
 
                 # get build_repo name
-				try:
-					build_repo = RepoTypes.objects.get(pk=repo_type_id)
-				except:
-					build_repo = None
+                try:
+                    build_repo = RepoTypes.objects.get(pk=repo_type_id)
+                except:
+                    build_repo = None
                 
                 # get a user
-				user = request.user.username
-				request_list.append( (build_id, build_repo, user, reason) )
-			push = PushPackagesToRepo(request_list)
-			if action_type == 'push':
-				push.push_to_repo()
-			elif action_type == 'cancel':
-				push.cancel_packages()
-			return HttpResponseRedirect('/packages/builds/')
+                user = request.user.username
+                request_list.append( (build_id, build_repo, user, reason) )
+                push = PushPackagesToRepo(request_list)
+                if action_type == 'push':
+                    outbuf = push.push_to_repo()
+                    print(str('\n').join(outbuf))
+                elif action_type == 'cancel':
+                    push.cancel_packages()
+
+            return HttpResponseRedirect('/packages/builds/')
     else:
         ufk = UpdateFromKoji(request.user.username)
         ufk.update_builds()

@@ -56,7 +56,7 @@ def get_all_repo_types():
 
 def get_all_repos():
     try:
-        repos = Repos.objects.order_by('repo_name').all()
+        repos = Repos.objects.order_by('repo_name')
     except:
         return []
 
@@ -68,7 +68,7 @@ def get_all_repos():
 
 def get_all_owners():
     try:
-        owners = Owners.objects.order_by('owner_name').all()
+        owners = Owners.objects.order_by('owner_name')
     except:
         return []
 

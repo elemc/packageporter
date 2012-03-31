@@ -20,6 +20,7 @@ from packageporter.logs.models import UpdateLog
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 import datetime
+import subprocess
 
 class UpdateFromKoji(object):
     def __init__(self, user = ''):
@@ -46,22 +47,29 @@ class UpdateFromKoji(object):
             sys_repo = Repos.objects.get(pk=0)
         except:
             new_sys_repo = Repos(repo_id=0,
-                                 repo_name = "Unknown")
+                                 repo_name = "unknown")
             new_sys_repo.save()
 
     def update_rt(self):
+        # Releases
+        try:
+            rt_t = RepoTypes.objects.get(pk=0)
+        except:
+            new_rt_t = RepoTypes(rt_id=0, rt_name="releases")
+            new_rt_t.save()
+
         # Testing
         try:
             rt_t = RepoTypes.objects.get(pk=1)
         except:
-            new_rt_t = RepoTypes(rt_id=1, rt_name="Testing")
+            new_rt_t = RepoTypes(rt_id=1, rt_name="updates-testing")
             new_rt_t.save()
             
         # Updates
         try:
             rt_u = RepoTypes.objects.get(pk=2)
         except:
-            new_rt_u = RepoTypes(rt_id=2, rt_name="Updates")
+            new_rt_u = RepoTypes(rt_id=2, rt_name="updates")
             new_rt_u.save()
 
     def update_owners(self):
@@ -217,17 +225,11 @@ class UpdateFromKoji(object):
                 tag_name = r_tag[0]
         return tag_name
 
-    def check_perm(self):
-        try:
-            perm = Permission.objects.get(codename="can_push_all_packages")
-        except:
-            content_type = ContentType.objects.get(app_label='packageporter', model='BuildedPackages')
-            new_perm = Permission.objects.create(codename="can_push_all_packages",
-												 name="Can push packages from all users",
-                                                 content_type=content_type)
-			
-
 class PushPackagesToRepo(object):
+    dists = {"dist-rfr": "rf",
+             "dist-el": 'el'
+             }
+    
     def __init__(self, build_list = []):
         self.build_list = build_list
 
@@ -248,25 +250,76 @@ class PushPackagesToRepo(object):
         for build_id, build_repo, user, reason in self.build_list:
             self.cancel_package(build_id, user, reason)
 
+    def _dist_and_ver_from_tag(self, tag):
+        dist = ""
+        ver = ""
+        
+        print("tag: %s" % tag)
+        for prefix in self.dists.keys():
+            begin = tag.find(prefix)
+            print("begin: %s" % begin)
+            if begin >= 0:
+                dist = self.dists[prefix]
+                
+                # version
+                ver_begin = begin + len(prefix)
+                print("begin+len(prefix): %s" % ver_begin)
+                ver_part = tag[ver_begin:]
+                print("ver_part: %s" % ver_part)
+                if 'rawhide' in ver_part:
+                    ver = 'rawhide'
+                elif 'devel' in ver_part:
+                    ver = 'pre'
+                else:
+                    ver = ver_part
+                break
+        return (dist,ver)
+
+    def _generate_call_list(self, build, build_repo):
+        dist, ver  = self._dist_and_ver_from_tag(build.tag_name)
+        l = []
+        l.append('/home/alex/bin/koji-pp')
+        l.append('--id %s' % build.build_id)
+        l.append('--ver %s' % ver)
+        l.append('--repo %s' % build.build_pkg.pkg_repo)
+        l.append('--branch %s' % build_repo.rt_name)
+        l.append('--dist %s' % dist)
+        return l
+
     def push_to_repo(self):
         if len(self.build_list) == 0:
             return;
+
+        all_stdout = []
+
         for build_id, build_repo, user,reason in self.build_list:
             if build_repo is None:
                 print("Warning! Repo is not defined. Skip this build (%s).", build_id)
                 continue
             # TODO: make a push process
             print("Push build id=%s to repo %s" % (build_id, build_repo))
+
             try:
                 bpkg = BuildedPackages.objects.get(pk=build_id)
             except:
                 print("Warning! Build ID %s not found!" % build_id)
                 continue
 
+            # cmd to push
+            cmd = self._generate_call_list(bpkg, build_repo)
+            buf = ""
+            #print("Run command:\n\t%s" % str(' ').join(cmd))
+            return_result = subprocess.call(str(' ').join(cmd),shell=True)#, stdout=buf, stderr=buf)
+            all_stdout.append(buf)
+            if return_result != 0:
+                continue
+            
             if build_repo.rt_id == 1:
                 bpkg.oper_pre_push(user, build_repo)
             else:
                 bpkg.oper_push(user, build_repo)
+
+        return all_stdout
 
 
 class ShareOperations(object):
