@@ -8,7 +8,7 @@ from django.http import Http404, HttpResponseRedirect
 from django.contrib.auth.decorators import login_required
 from django.core.context_processors import csrf
 from django.views.decorators.csrf import csrf_protect
-from packageporter.oper import PushPackagesToRepo, UpdateFromKoji
+from packageporter.oper import PushPackagesToRepo, UpdateFromKoji, ShareOperations
 from packageporter.packages.forms import SelectPackagesFormSet, BuildsInitialData, PackageForm
 
 @csrf_protect
@@ -68,9 +68,10 @@ def allbuilds(request):
 @csrf_protect
 @login_required(login_url='/accounts/login/')
 def packages(request):
-    allpkgs = Packages.objects.order_by('pkg_name')
-    
-    
+    if not request.user.has_perm('packageporter.can_push_all_packages'):
+        allpkgs = Packages.objects.filter(pkg_owner=ShareOperations.get_owner_by_name(request.user.username))
+    else:
+        allpkgs = Packages.objects.order_by('pkg_name')
     toform = {'user': request.user,
               'packages': allpkgs }
     toform.update(csrf(request))
@@ -80,10 +81,8 @@ def packages(request):
 @login_required(login_url='/accounts/login/')
 def package_edit(request, pkg_id):
     if request.method == 'POST':
-        print("In - 1")
         form = PackageForm(request.POST)
         if form.is_valid():
-            print("In - 2")
             try:
                 pkg = Packages.objects.get(pk=pkg_id)
             except:

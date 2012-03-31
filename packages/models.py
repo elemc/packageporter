@@ -27,6 +27,7 @@ class BuildedPackages(models.Model):
     push_time           = models.DateTimeField(null=True)
     push_repo_type      = models.ForeignKey(RepoTypes, null=True)
     is_blocked_to_push  = models.BooleanField(default = False)
+    tag_name            = models.TextField(null=False)
 
     class Meta:
         permissions     = (

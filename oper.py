@@ -178,6 +178,7 @@ class UpdateFromKoji(object):
             except:
                 package = self.get_package(pkg_id)
                 owner   = self.get_owner(owner_id)
+                tag_name= self._get_tag_for_build(_id)
                 if (package is not None) and (owner is not None):
                     new_bp = BuildedPackages(build_id=_id, 
                                              build_pkg=package, 
@@ -187,7 +188,8 @@ class UpdateFromKoji(object):
                                              completion_time=completion_time,
                                              task_id=task_id,
                                              owner=owner,
-                                             pushed=False)
+                                             pushed=False,
+                                             tag_name=tag_name)
                     new_bp.save()
                     new_bp.oper_build()
                     if last_build_id < _id:
@@ -202,6 +204,18 @@ class UpdateFromKoji(object):
                                last_build_id = last_build_id,
                                user = self.user)
             new_ul.save()
+
+    def _get_tag_for_build(self, build_id):
+        tag_name = ""
+        c = self.koji_conn.cursor()
+        c.execute("select tag_id from tag_listing where (build_id='%s')" % build_id)
+        for record in c:
+            tag_id = record[0]
+            c_tag = self.koji_conn.cursor()
+            c_tag.execute("select name from tag where (id='%s')" % tag_id)
+            for r_tag in c_tag:
+                tag_name = r_tag[0]
+        return tag_name
 
     def check_perm(self):
         try:
@@ -253,6 +267,17 @@ class PushPackagesToRepo(object):
                 bpkg.oper_pre_push(user, build_repo)
             else:
                 bpkg.oper_push(user, build_repo)
+
+
+class ShareOperations(object):
+    @staticmethod
+    def get_owner_by_name(owner_name):
+        try:
+            owner = Owners.objects.get(owner_name=owner_name)
+        except:
+            return None
+
+        return owner
 
 if __name__ == '__main__':
     ufk = UpdateFromKoji()
