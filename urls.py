@@ -9,8 +9,11 @@ urlpatterns = patterns('',
     #url(r'^$', 'packageporter.views.home', name='home'),
     url(r'^$', 'packageporter.views.index', name='index'),
     url(r'^packages/$', 'packageporter.packages.views.packages', name='packages'),
+    url(r'^packages/package/(?P<pkg_id>\d+)/$', 'packageporter.packages.views.package_edit', name='package_edit'),
     url(r'^packages/builds/$', 'packageporter.packages.views.index', name='index'),
     url(r'^packages/builds/all/$', 'packageporter.packages.views.allbuilds', name='allbuilds'),
+	url(r'^accounts/login/$', 'django.contrib.auth.views.login'),
+	url(r'^logout/$', 'packageporter.views.logout_view', name='logout_view'),
     # url(r'^packageporter/', include('packageporter.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:

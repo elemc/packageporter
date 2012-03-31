@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load url from future %}
+
+    <div id="content">
+        {% block content %}
+		<div class="module">
+		  <table summary="Packages">
+			<caption>Packages</caption>
+			<tr>
+			  <td>Package</td>
+			  <td>Owner</td>
+			  <td>Repository</td>
+			</tr>
+			{% for pkg in packages %}
+			<tr>
+			  <td><a href="/packages/package/{{ pkg.pkg_id }}">{{ pkg.pkg_name }}</a></td>
+			  <td><a href="/owners/owner/{{ pkg.pkg_owner.owner_id }}">{{ pkg.pkg_owner }}</a></td>
+			  <td><a hred="/repos/repo/{{ pkg.pkg_repo.repo_id }}">{{ pkg.pkg_repo }}</a></td>
+			  <td></td>
+			</tr>
+			{% endfor %}
+		  </table>			
+          
+        </div>
+        {% endblock %}
+    </div>
+</body>
+</html>
+
+				  {{ field.label_tag }}: {{ field }}

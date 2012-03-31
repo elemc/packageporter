@@ -28,6 +28,12 @@ class BuildedPackages(models.Model):
     push_repo_type      = models.ForeignKey(RepoTypes, null=True)
     is_blocked_to_push  = models.BooleanField(default = False)
 
+    class Meta:
+        permissions     = (
+            ('can_push_all_packages', 'Can push packages from all users'),
+            ('can_push_to_updates_directly', 'Can push packages to updates repo directly'),
+            )
+
     def __unicode__(self):
         return "%i - %s" % (self.build_id, self.build_pkg.pkg_name)
 

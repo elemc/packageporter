@@ -8,7 +8,7 @@
 
 HOST="localhost"
 PORT=5432
-USER="alex"
+USER="koji"
 PASSWORD="3510"
 DBNAME="koji"
 
@@ -17,6 +17,8 @@ from packageporter.packages.models import Packages, BuildedPackages
 from packageporter.owners.models import Owners
 from packageporter.repos.models import Repos, RepoTypes
 from packageporter.logs.models import UpdateLog
+from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
 import datetime
 
 class UpdateFromKoji(object):
@@ -200,6 +202,16 @@ class UpdateFromKoji(object):
                                last_build_id = last_build_id,
                                user = self.user)
             new_ul.save()
+
+    def check_perm(self):
+        try:
+            perm = Permission.objects.get(codename="can_push_all_packages")
+        except:
+            content_type = ContentType.objects.get(app_label='packageporter', model='BuildedPackages')
+            new_perm = Permission.objects.create(codename="can_push_all_packages",
+												 name="Can push packages from all users",
+                                                 content_type=content_type)
+			
 
 class PushPackagesToRepo(object):
     def __init__(self, build_list = []):
