@@ -33,6 +33,7 @@ class BuildsInitialData(object):
                       "completion_time": bpkg.completion_time.strftime('%Y-%m-%d %H:%M:%S'),           
                       "pkg_id": bpkg.build_pkg.pkg_id,
                       "build_id": bpkg.build_id,
+                      "repo_type": 2,
                       }
             
             result.append(record)
