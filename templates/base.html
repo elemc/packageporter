@@ -3,6 +3,7 @@
 <head>
 <title>{% block title %}{% endblock %}</title>
 <link rel="stylesheet" type="text/css" href="{% block stylesheet %}{% load adminmedia %}{% admin_media_prefix %}css/base.css{% endblock %}" />
+<link rel="stylesheet" type="text/css" href="/static/base-menu.css">
 {% block extrastyle %}{% endblock %}
 <!--[if lte IE 7]><link rel="stylesheet" type="text/css" href="{% block stylesheet_ie %}{% load adminmedia %}{% admin_media_prefix %}css/ie.css{% endblock %}" /><![endif]-->
 {% if LANGUAGE_BIDI %}<link rel="stylesheet" type="text/css" href="{% block stylesheet_rtl %}{% admin_media_prefix %}css/rtl.css{% endblock %}" />{% endif %}
@@ -24,17 +25,18 @@
         {% block branding %}{% endblock %}
         </div>
         {% block nav-global %}
-		<table width="100%">
-		  <tr>
-			<th width="8%"><a href="/">Home</a></th>
-			<th width="8%"><a href="/packages/builds/">Builds</a></th>
-			<th width="8%"><a href="/packages/">Packages</a></th>
-			<th width="8%"><a href="/repos/">Repositories</a></th>
-			<th width="8%"><a href="/owners/">Owners</a></th>
-			<th width="8%"><a href="/admin/">Administration</a></th>
-			<td width="52%" align="right">
+        <div id="mainNav">
+          <ul>
+            <li id="homeTab"><a href="/">Home</a></li>
+            <li id="buildsTab"><a href="/packages/builds/">Builds</a></li>
+            <li id="packagesTab"><a href="/packages/">Packages</a></li>
+            <li id="reposTab"><a href="/repos/">Repositories</a></li>
+            <li id="ownersTab"><a href="/">Owners</a></li>
+            <li id="adminTab"><a href="/admin/">Administration</a></li>
+            </ul>
+            <!-- <li id="rightTab"> -->
         {% if user.is_active and user.is_staff %}
-        <!-- <div id="user-tools"> -->
+        <div id="user-tools1">
             {% trans 'Welcome,' %}
             <strong>{% filter force_escape %}{% firstof user.first_name user.username %}{% endfilter %}</strong>.
             {% block userlinks %}
@@ -57,11 +59,9 @@
                 {% endif %}
                 {% trans 'Log out' %}</a>
             {% endblock %}
-        <!-- </div> -->
+        </div>
         {% endif %}
-		  </td>
-		  </tr>
-		</table>
+		</div>
 
         {% endblock %}
     </div>

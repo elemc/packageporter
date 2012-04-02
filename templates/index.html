@@ -15,7 +15,7 @@
 			  <th>Description</td>
 			</tr>
 			{% for row in operations %}
-			<tr>
+			<tr id='operationLog{{ row.3 }}'>
 			  {% for field in row %}
 			  <td>{{ field }}</td>
 			  {% endfor %}
