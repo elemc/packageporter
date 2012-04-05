@@ -28,12 +28,19 @@ class BuildsInitialData(object):
         bpkg_list = self.get_packages()
         result = []
         for bpkg in bpkg_list:
+            selectable = True
+            try:
+                if bpkg.build_pkg.pkg_repo.repo_id == 0:
+                    selectable = False
+            except:
+                selectable = False
             record = {"selected_package": False,
                       "package_name": bpkg.full_build_package_name(),
                       "completion_time": bpkg.completion_time.strftime('%Y-%m-%d %H:%M:%S'),           
                       "pkg_id": bpkg.build_pkg.pkg_id,
                       "build_id": bpkg.build_id,
                       "repo_type": 2,
+                      "selectable": selectable,
                       }
             
             result.append(record)
@@ -86,6 +93,7 @@ class SelectPackagesToPush(forms.Form):
     pkg_id              = forms.IntegerField(widget=forms.HiddenInput)
     build_id            = forms.IntegerField(widget=forms.HiddenInput)
     cancel_reason       = forms.CharField(required=False)
+    selectable          = forms.BooleanField(widget=forms.HiddenInput, required=False)
     
 SelectPackagesFormSet = formset_factory(SelectPackagesToPush, extra=0)
 

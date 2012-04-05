@@ -84,12 +84,21 @@ class BuildedPackages(models.Model):
         self.push_user          = user
         self.push_repo_type     = repo_type
         self.save()
-        bo = BuildOperations(build=self, 
+        bo = BuildOperations(build=self,
                              operation_time=datetime.datetime.now(),
                              operation_user=user,
                              operation_type=2,
                              operation_description="Finally push to %s" % repo_type.rt_name)
         bo.save()
+
+    def remove_old_operations(self):
+        # remove old operations
+        try:
+            list_bo = BuildOperations.objects.filter(build=self)
+        except:
+            print("Oops, operations is not found!")
+
+        list_bo.delete()
 
 class BuildOperations(models.Model):
     build                       = models.ForeignKey(BuildedPackages)
@@ -109,3 +118,4 @@ class BuildOperations(models.Model):
             return "Block"
 
         return "Unknown"
+

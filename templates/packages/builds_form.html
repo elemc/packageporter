@@ -22,27 +22,20 @@
 
 			  {% for form in formset %}
 			  <tr>
-				{% for field in form %}
-				{% if field.is_hidden %}
-				  {% if field.label == "Package name" %}
-				    <!-- TODO: this is my test anchor -->
-				    <td>{{ field.value }}</td>
-				  {% else %}
-					  {% if field.label == "Pkg id" %}
-					    <td><a href="http://koji.russianfedora.ru/koji/packageinfo?packageID={{ field.value }}" target="_blank">Package info</a><br>
-					  {% else %}
-						{% if field.label == "Build id" %}
-						  <a href="http://koji.russianfedora.ru/koji/buildinfo?buildID={{ field.value }}" target="_blank">Build info</a></td>
-						{% else %}
-				          <td>{{ field.value }}</td>
-						{% endif %}
-					  {% endif %}
-				  {% endif %}
-					{{ field }}
-				{% else %}
-				<td>{{ field }}</td>
-				{% endif %}
-				{% endfor %}
+                {% if form.selectable.value %}
+                <td>{{ form.selectable }}{{ form.selected_package }}</td>
+                {% else %}
+                <td>{{ form.selectable }}<a href='/packages/package/{{ form.pkg_id.value }}/'>fix</a></td>
+                {% endif %}
+                
+
+                <td>{{ form.package_name.value }}{{ form.package_name }}</td>
+                <td>{{ form.completion_time.value }}{{ form.completion_time }}</td>
+                <td>{{ form.repo_type }}</td>
+                <td><a href="http://koji.russianfedora.ru/koji/packageinfo?packageID={{ form.pkg_id.value }}" target="_blank">Package info</a>{{ form.pkg_id }}
+                <br><a href="http://koji.russianfedora.ru/koji/buildinfo?buildID={{ form.build_id.value }}" target="_blank">Build info</a>{{ form.build_id }}
+                <td>{{ form.cancel_reason }}</td>
+                
 			  </tr>
 			  {% endfor %}
 			</table>

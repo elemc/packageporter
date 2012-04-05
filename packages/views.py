@@ -51,6 +51,10 @@ def index(request):
                     push.cancel_packages()
 
             return HttpResponseRedirect('/packages/builds/')
+        else:
+            for form in formset:
+                print(form.errors)
+            raise Http404
     else:
         ufk = UpdateFromKoji(request.user.username)
         ufk.update_builds()
@@ -81,7 +85,7 @@ def packages(request):
 
 @csrf_protect
 @login_required(login_url='/accounts/login/')
-def package_edit(request, pkg_id):
+def package_edit(request, pkg_id, redir_page="/packages/"):
     if request.method == 'POST':
         form = PackageForm(request.POST)
         if form.is_valid():
@@ -99,7 +103,7 @@ def package_edit(request, pkg_id):
 
             pkg.pkg_repo = repo
             pkg.save()
-            return HttpResponseRedirect('/packages/')
+            return HttpResponseRedirect(redir_page)
         else:
             print(form.errors)
     try:

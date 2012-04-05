@@ -242,6 +242,7 @@ class PushPackagesToRepo(object):
         bpkg.pushed = True
         bpkg.push_user = user
         bpkg.save()
+        bpkg.remove_old_operations()
         bpkg.oper_block(user, reason)
 
     def cancel_packages(self):
@@ -254,18 +255,14 @@ class PushPackagesToRepo(object):
         dist = ""
         ver = ""
         
-        print("tag: %s" % tag)
         for prefix in self.dists.keys():
             begin = tag.find(prefix)
-            print("begin: %s" % begin)
             if begin >= 0:
                 dist = self.dists[prefix]
                 
                 # version
                 ver_begin = begin + len(prefix)
-                print("begin+len(prefix): %s" % ver_begin)
                 ver_part = tag[ver_begin:]
-                print("ver_part: %s" % ver_part)
                 if 'rawhide' in ver_part:
                     ver = 'rawhide'
                 elif 'devel' in ver_part:
@@ -278,7 +275,7 @@ class PushPackagesToRepo(object):
     def _generate_call_list(self, build, build_repo):
         dist, ver  = self._dist_and_ver_from_tag(build.tag_name)
         l = []
-        l.append('/home/pushrepo/bin/koji-pp')
+        l.append('echo')
         l.append('--id %s' % build.build_id)
         l.append('--ver %s' % ver)
         l.append('--repo %s' % build.build_pkg.pkg_repo)
@@ -296,9 +293,6 @@ class PushPackagesToRepo(object):
             if build_repo is None:
                 print("Warning! Repo is not defined. Skip this build (%s).", build_id)
                 continue
-            # TODO: make a push process
-            print("Push build id=%s to repo %s" % (build_id, build_repo))
-
             try:
                 bpkg = BuildedPackages.objects.get(pk=build_id)
             except:
@@ -308,15 +302,16 @@ class PushPackagesToRepo(object):
             # cmd to push
             cmd = self._generate_call_list(bpkg, build_repo)
             buf = ""
-            #print("Run command:\n\t%s" % str(' ').join(cmd))
             return_result = subprocess.call(str(' ').join(cmd),shell=True)#, stdout=buf, stderr=buf)
             all_stdout.append(buf)
             if return_result != 0:
                 continue
             
             if build_repo.rt_id == 1:
+                bpkg.remove_old_operations()
                 bpkg.oper_pre_push(user, build_repo)
             else:
+                bpkg.remove_old_operations()
                 bpkg.oper_push(user, build_repo)
 
         return all_stdout
