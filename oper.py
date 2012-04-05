@@ -275,7 +275,7 @@ class PushPackagesToRepo(object):
     def _generate_call_list(self, build, build_repo):
         dist, ver  = self._dist_and_ver_from_tag(build.tag_name)
         l = []
-        l.append('echo')
+        l.append('/home/pushrepo/bin/koji-pp')
         l.append('--id %s' % build.build_id)
         l.append('--ver %s' % ver)
         l.append('--repo %s' % build.build_pkg.pkg_repo)
