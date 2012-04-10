@@ -119,3 +119,10 @@ class BuildOperations(models.Model):
 
         return "Unknown"
 
+class Push(models.Model):
+    build       = models.ForeignKey(BuildedPackages)
+    ver         = models.TextField(null = False)
+    repo        = models.TextField(null = False)
+    branch      = models.TextField(null = False)
+    dist        = models.TextField(null = False)
+    done        = models.BooleanField(default = False)

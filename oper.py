@@ -13,7 +13,7 @@ PASSWORD="3510"
 DBNAME="koji"
 
 import psycopg2
-from packageporter.packages.models import Packages, BuildedPackages
+from packageporter.packages.models import Packages, BuildedPackages, Push
 from packageporter.owners.models import Owners
 from packageporter.repos.models import Repos, RepoTypes
 from packageporter.logs.models import UpdateLog
@@ -274,14 +274,20 @@ class PushPackagesToRepo(object):
 
     def _generate_call_list(self, build, build_repo):
         dist, ver  = self._dist_and_ver_from_tag(build.tag_name)
-        l = []
+        '''l = []
         l.append('/home/pushrepo/bin/koji-pp')
         l.append('--id %s' % build.build_id)
         l.append('--ver %s' % ver)
-        l.append('--repo %s' % build.build_pkg.pkg_repo)
+        l.append('--repo %s' % build.build_pkg.pkg_repo.repo_name)
         l.append('--branch %s' % build_repo.rt_name)
-        l.append('--dist %s' % dist)
-        return l
+        l.append('--dist %s' % dist)'''
+        # New process
+        push = Push(build = build,
+                    ver = ver,
+                    repo = build.build_pkg.pkg_repo.repo_name,
+                    branch = build_repo.rt_name,
+                    dist = dist)
+        return push
 
     def push_to_repo(self):
         if len(self.build_list) == 0:
@@ -300,12 +306,14 @@ class PushPackagesToRepo(object):
                 continue
 
             # cmd to push
-            cmd = self._generate_call_list(bpkg, build_repo)
-            buf = ""
-            return_result = subprocess.call(str(' ').join(cmd),shell=True)#, stdout=buf, stderr=buf)
-            all_stdout.append(buf)
-            if return_result != 0:
-                continue
+            push = self._generate_call_list(bpkg, build_repo)
+            push.save()
+
+            #buf = ""
+            #return_result = subprocess.call(str(' ').join(cmd),shell=True)#, stdout=buf, stderr=buf)
+            #all_stdout.append(buf)
+            #if return_result != 0:
+            #    continue
             
             if build_repo.rt_id == 1:
                 bpkg.remove_old_operations()
