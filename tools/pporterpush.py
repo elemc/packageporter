@@ -12,16 +12,17 @@ from optparse import OptionParser
 import logging
 import subprocess
 import tempfile
+import shutil
 
 DBHOST          = "localhost"
 DBPORT          = 5432
 DBUSER          = "koji"
-DBPASSWORD      = "3510"
+DBPASSWORD      = ""
 DBNAME          = "pkgporter"
-#SCRIPT_PUSH     = "/home/pushrepo/bin/koji-pp"
-SCRIPT_PUSH     = 'echo'
-#SCRIPT_UPD      = "/home/pushrepo/bin/tra-la-la-to-repo"
-SCRIPT_UPD      = "echo 'ГОТОВО ЖЕ!'"
+
+# Scripts
+SCRIPT_PUSH     = "/home/pushrepo/bin/koji-pp"
+SCRIPT_CHK_IDLE = "rsync -a knight.yandex.net::{{repo}}/.idle"
 
 try:
     import psycopg2
@@ -33,6 +34,8 @@ parser = OptionParser()
 parser.add_option("-l", "--log-file", action="store", type="string", dest="logfilename", default="")
 parser.add_option("-w", "--log-level", action="store", type="string", dest="loglevel", default="DEBUG")
 parser.add_option("-o", "--lock-file", action="store", type="string", dest="lockfilename", default=".pporterd")
+
+external_dists = ['rf', 'el']
 
 class PPorterException(Exception):
     def __init__(self, msg):
@@ -59,6 +62,26 @@ class PushToRepo(object):
         except PPorterSQLException, e:
             self.logger.error("SQL %s" % e)
             self.pp_conn = None
+
+        self.temp_dirs = []
+
+    def check_external_idle(self, repo):
+        self.logger.debug("Try check .idle file present for '%s'" % repo)
+        idle_cmd = SCRIPT_CHK_IDLE.replace('{{repo}}', repo)
+        result = self.run_cmd(0, idle_cmd)
+        if result == 0:
+            return True
+        return False
+
+    def _dot_push_file(self, name):
+        self.logger.debug("Try create temporary directory")
+        temp_dir = tempfile.mkdtemp('pporter')
+        self.logger.debug("Temporary directory created '%s'" % temp_dir)
+        self.temp_dirs.append(temp_dir)
+        filename = os.path.join(temp_dir, name)
+        f = open(filename, 'w')
+        f.close()
+        return filename
 
     def lock_file_create(self):
         try:
@@ -126,6 +149,44 @@ class PushToRepo(object):
             self.pp_conn.close()
 
         self.lock_file_remove()
+        for dir in self.temp_dirs:
+            try:
+                shutil.rmtree(dir)
+            except:
+                self.logger.warning("Remove directory '%s' failed" % dir) 
+
+    def _do_dist(self, dist, cmds):
+        if not self.check_external_idle(dist):
+            return
+
+        # .startpush
+        self.logger.debug("Try create and rsync .startpush")
+        dot_start_filename = self._dot_push_file('.startpush')
+        result_dot_start = self.run_cmd(0, "rsync -a %s knight.yandex.net::%s/" % (dot_start_filename, dist))
+        if result_dot_start != 0:
+            self.logger.error("Error while rsync .startpush, skip this dist")
+            return
+
+        for pre_cmd in cmds:
+            build_id = pre_cmd['id']
+            push_id = pre_cmd['push_id']
+            cmd = pre_cmd['cmd']
+            if self.run_cmd(build_id, cmd) == 0:
+                self.logger.debug("Try update sql table")
+                try:
+                    self.skip_push(push_id)
+                except PPorterSQLException, e:
+                    self.logger.error(e)
+                    cursor.close()
+                    self._close_and_remove()
+                    continue
+
+        # .endpush
+        self.logger.debug("Try create and rsync .endpush")
+        dot_end_filename = self._dot_push_file('.endpush')
+        result_dot_end = self.run_cmd(0, "rsync -a %s knight.yandex.net::%s/" % (dot_end_filename, dist))
+        if result_dot_end != 0:
+            self.logger.error("Error while rsync .endpush")
 
     def push(self):
         self.logger.debug("Check another copy of application")
@@ -153,8 +214,14 @@ class PushToRepo(object):
         
         if cursor.rowcount > 0:
             self.logger.debug("Found %s records" % cursor.rowcount)
+            cmd_list_per_dist = {}
+            for d in external_dists:
+                cmd_list_per_dist[d] = []
+
+            # pre compose
             for record in cursor:
                 push_id, build_id, ver, repo, branch, dist = record
+
                 l = []
                 l.append(SCRIPT_PUSH)
                 l.append('--id %s' % build_id)
@@ -163,21 +230,19 @@ class PushToRepo(object):
                 l.append('--branch %s' % branch)
                 l.append('--dist %s' % dist)
 
-                if self.run_cmd(build_id, str(' ').join(l)) == 0:
-                    self.logger.debug("Try update sql table")
-                    try:
-                        self.skip_push(push_id)
-                    except PPorterSQLException, e:
-                        self.logger.error(e)
-                        cursor.close()
-                        self._close_and_remove()
-                        return
-                        
-            res = self.run_cmd(0, SCRIPT_UPD)
-            if res != 0:
-                self.logger.warning("Script '%s' error" % SCRIPT_UPD)
+                cmd = {}
+                cmd['id'] = build_id
+                cmd['push_id'] = push_id
+                cmd['cmd'] = str(' ').join(l)
+                
+                cmd_list_per_dist[dist].append(cmd)
+
+            # run cmds
+            for dist_key in cmd_list_per_dist.keys():
+                self._do_dist(dist_key, cmd_list_per_dist[dist_key])
+                
         else:
-            self.logger.debug("Records list is empty, not enough packages to push")
+            self.logger.debug("Record list is empty, not enough packages to push")
             
         cursor.close()
         self._close_and_remove()
