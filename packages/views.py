@@ -42,13 +42,15 @@ def index(request):
                 
                 # get a user
                 user = request.user.username
-                request_list.append( (build_id, build_repo, user, reason) )
-                push = PushPackagesToRepo(request_list)
-                if action_type == 'push':
-                    outbuf = push.push_to_repo()
-                    print(str('\n').join(outbuf))
-                elif action_type == 'cancel':
-                    push.cancel_packages()
+                rrecord = (build_id, build_repo, user, reason)
+                request_list.append( rrecord )
+
+            push = PushPackagesToRepo(request_list)
+            if action_type == 'push':
+                outbuf = push.push_to_repo()
+                #print(str('\n').join(outbuf))
+            elif action_type == 'cancel':
+                push.cancel_packages()
 
             return HttpResponseRedirect('/packages/builds/')
         else:
@@ -85,7 +87,7 @@ def packages(request):
 
 @csrf_protect
 @login_required(login_url='/accounts/login/')
-def package_edit(request, pkg_id, redir_page="/packages/"):
+def package_edit(request, pkg_id, redir_page='/packages/'):
     if request.method == 'POST':
         form = PackageForm(request.POST)
         if form.is_valid():

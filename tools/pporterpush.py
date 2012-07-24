@@ -222,6 +222,9 @@ class PushToRepo(object):
             for record in cursor:
                 push_id, build_id, ver, repo, branch, dist = record
 
+                if len(dist) == 0:
+                    continue
+
                 l = []
                 l.append(SCRIPT_PUSH)
                 l.append('--id %s' % build_id)

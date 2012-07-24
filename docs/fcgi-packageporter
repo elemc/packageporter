@@ -1,0 +1,93 @@
+#!/bin/sh
+#
+# chkconfig: 345 85 15
+# description: FastCGI server for Django
+
+# Source function library
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# Check that networking is up.
+[ "${NETWORKING}" = "no" ] && exit 0
+
+PROJECT=packageporter # django project name
+PROJECTPATH=/home/pushrepo/$PROJECT # path to the django project
+HOST=127.0.0.1 # host to bind the port to
+PORT=3033 # port to listen on
+PIDPATH=/home/pushrepo/.$PROJECT # .pid file location
+RUNASUSER=pushrepo # user to run fastcgi
+SERVERNAME=fcgi-$PROJECT # Process name
+
+# Maximum requests for a child to service before expiring
+#MAXREQ=
+# Spawning method – prefork or threaded
+METHOD=threaded
+# Maximum number of children to have idle
+#MAXSPARE=
+# Minimum number of children to have idle
+#MINSPARE=
+# Maximum number of children to spawn
+#MAXCHILDREN=
+
+start () {
+# Check if the service is already running?
+if [ ! -f $PIDSPATH/$SERVERNAME.pid ]; then
+echo -n $"Starting $SERVERNAME…"
+daemon --user $RUNASUSER $PROJECTPATH/manage.py runfcgi pidfile=$PIDPATH/$SERVERNAME.pid \
+${HOST:+host=$HOST} \
+${PORT:+port=$PORT} \
+${MAXREQ:+maxrequests=$MAXREQ} \
+${METHOD:+method=$METHOD} \
+${MAXSPARE:+maxspare=$MAXSPARE} \
+${MINSPARE:+minspare=$MINSPARE} \
+${MAXCHILDREN:+maxchildren=$MAXCHILDREN} \
+${DAEMONISE:+damonize=True}
+echo
+RETVAL=$?
+else
+echo $"$SERVERNAME is already running."
+fi
+}
+
+stop() {
+# Stop daemons.
+if [ -f $PIDPATH/$SERVERNAME.pid ]; then
+echo -n $"Stopping $SERVERNAME…"
+killproc -p "$PIDPATH/$SERVERNAME.pid" -d 60 $SERVERNAME
+echo
+# Delete pidfile only when Django was called successfully
+if [ $? -eq 0 ]; then
+rm -f $PIDPATH/$SERVERNAME.pid "$SERVERNAME.pid" >/dev/null 2>&1
+fi
+else
+echo $"$SERVERNAME is NOT running."
+fi
+
+}
+
+RETVAL=0
+
+case "$1" in
+start)
+start
+;;
+stop)
+stop
+;;
+status)
+status -p "$PIDPATH/$SERVERNAME.pid" $SERVERNAME
+RETVAL=$?
+;;
+restart)
+stop
+start
+;;
+*)
+echo $"Usage: $0 \{start|stop|restart|status\}"
+exit 3
+;;
+esac
+
+exit $RETVAL

@@ -1,0 +1,15 @@
+= CentOS + Apache + FastCGI =
+
+* Install packages 
+
+ yum install mod_fastcgi python-flup Django
+
+* Init script ./fcgi-packageporter
+
+Taken from http://www.question-defense.com/2009/12/30/init-script-to-run-django-fastcgi-threaded-on-a-tcp-port 
+
+Pid file stored in ~/.packageporter/
+
+* Apache conf ./packageporter.conf
+
+Apache needs permissions to find files in static/ folder 
