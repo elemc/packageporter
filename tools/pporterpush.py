@@ -8,6 +8,7 @@
 
 import os
 import sys
+import atexit
 from optparse import OptionParser
 import logging
 import subprocess
@@ -30,9 +31,16 @@ except:
     print("Please install psycopg2 and rerun application")
     raise
 
+try:
+    import psi.process
+except:
+    print("Please install python-PSI package and rerun application")
+    raise
+
+
 parser = OptionParser()
 parser.add_option("-l", "--log-file", action="store", type="string", dest="logfilename", default="")
-parser.add_option("-w", "--log-level", action="store", type="string", dest="loglevel", default="DEBUG")
+parser.add_option("-w", "--log-level", action="store", type="string", dest="loglevel", default="INFO")
 parser.add_option("-o", "--lock-file", action="store", type="string", dest="lockfilename", default=".pporterd")
 
 external_dists = ['rf', 'el']
@@ -53,6 +61,18 @@ class PPorterSQLException(PPorterException):
 
 class PushToRepo(object):
     def __init__(self, log_filename=None, log_level="DEBUG", lock_file=".pporter"):
+        # make STDERR
+        stderr_filename = ""
+        if log_filename is not None:
+            stderr_filename = "%s.err" % log_filename
+        else:
+            stderr_filename = "pporter.err"
+
+        sys.stderr.flush()
+        self.stderr = open(stderr_filename, "a+")
+        os.dup2(self.stderr.fileno(), sys.stderr.fileno())
+        atexit.register(self.lock_file_remove)
+
         self.logger = self._init_logger(log_filename, log_level)
         self.lock_filename = lock_file
 
@@ -188,21 +208,44 @@ class PushToRepo(object):
         if result_dot_end != 0:
             self.logger.error("Error while rsync .endpush")
 
+    def _check_pid(self):
+        # Return True = may be run, False - not
+        ac = self.another_copy()
+        if ac is None:
+            return True
+        else:
+            if len(ac) == 0:
+                self.logger.critical("Empty lock file found!")
+                try:
+                    self.lock_file_remove()
+                except PPorterException:
+                    return True
+            else:
+                try:
+                    p = psi.process.Process(pid=int(ac))
+                except psi.process.NoSuchProcessError:
+                    self.logger.warning("lock file freeze, again, fuck!")
+                    try:
+                        self.lock_file_remove()
+                    except:
+                        return True
+                    return True
+
+                self.logger.warning("Another copy of program present. PID=%s" % ac)
+                return False
+
+        return False
+
     def push(self):
         self.logger.debug("Check another copy of application")
 
-        ac = self.another_copy()
-        if ac is None:
+        runus = self._check_pid()
+        if ( runus ):
             try:
                 self.lock_file_create()
-            except PPorterException:
+            except:
                 return
         else:
-            if len(ac) == 0:
-                self.logger.warning("Another copy of program present. PID unknown")
-            else:
-                self.logger.warning("Another copy of program present. PID=%s" % ac)
-
             return
 
         try:
