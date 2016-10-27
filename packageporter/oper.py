@@ -64,7 +64,7 @@ class UpdateFromKoji(object):
         except:
             new_rt_t = RepoTypes(rt_id=1, rt_name="updates-testing")
             new_rt_t.save()
-            
+
         # Updates
         try:
             rt_u = RepoTypes.objects.get(pk=2)
@@ -90,7 +90,7 @@ class UpdateFromKoji(object):
     def __system_update_packages_from_cursor(self, c):
         for record in c:
             _id, name = record
-            
+
             try:
                 pkg = Packages.objects.get(pk=_id)
             except:
@@ -107,7 +107,7 @@ class UpdateFromKoji(object):
                     ctp.close()
                     c.close()
                     return
-                
+
                 try:
                     null_repo = Repos.objects.get(pk=0)
                 except:
@@ -119,7 +119,7 @@ class UpdateFromKoji(object):
                                    pkg_repo = null_repo)
                 new_pkg.save()
                 ctp.close()
-            
+
     def update_packages(self):
         if self.koji_conn is None:
             return
@@ -137,7 +137,7 @@ class UpdateFromKoji(object):
             return
         self.__system_update_packages_from_cursor(c)
         c.close()
-        
+
     def get_package(self, pkg_id):
         try:
             pkg = Packages.objects.get(pk=pkg_id)
@@ -173,7 +173,7 @@ class UpdateFromKoji(object):
 
         ul = UpdateLog.objects.all().filter(is_last=True)
         #if len(ul) == 0:
-        c.execute("select * from build where state='1'")
+        c.execute("select id, pkg_id, version, release, epoch, create_event, completion_time, state, task_id, owner from build where state='1'")
         #else:
         #    c.execute("select * from build where (state='1' and id>'%s')" % ul[0].last_build_id)
 
@@ -188,8 +188,8 @@ class UpdateFromKoji(object):
                 owner   = self.get_owner(owner_id)
                 tag_name= self._get_tag_for_build(_id)
                 if (package is not None) and (owner is not None):
-                    new_bp = BuildedPackages(build_id=_id, 
-                                             build_pkg=package, 
+                    new_bp = BuildedPackages(build_id=_id,
+                                             build_pkg=package,
                                              version=version,
                                              release=release,
                                              epoch=epoch,
@@ -207,7 +207,7 @@ class UpdateFromKoji(object):
             for one_ul in ul:
                 one_ul.is_last = False
                 one_ul.save()
-            new_ul = UpdateLog(is_last=True, 
+            new_ul = UpdateLog(is_last=True,
                                update_timestamp = datetime.datetime.now(),
                                last_build_id = last_build_id,
                                user = self.user)
@@ -229,7 +229,7 @@ class PushPackagesToRepo(object):
     dists = {"dist-rfr": "rf",
              "dist-el": 'el'
              }
-    
+
     def __init__(self, build_list = []):
         self.build_list = build_list
 
@@ -254,12 +254,12 @@ class PushPackagesToRepo(object):
     def _dist_and_ver_from_tag(self, tag):
         dist = ""
         ver = ""
-        
+
         for prefix in self.dists.keys():
             begin = tag.find(prefix)
             if begin >= 0:
                 dist = self.dists[prefix]
-                
+
                 # version
                 ver_begin = begin + len(prefix)
                 ver_part = tag[ver_begin:]
