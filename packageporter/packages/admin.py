@@ -1,4 +1,4 @@
-from packages.models import Packages, BuildedPackages
+from packageporter.packages.models import Packages, BuildedPackages
 from django.contrib import admin
 
 admin.site.register(Packages)
